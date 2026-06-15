@@ -52,6 +52,9 @@ export default function RootLayout() {
         <Stack.Screen name="state-detail" />
         <Stack.Screen name="map-planner" />
         <Stack.Screen name="timeline" />
+        <Stack.Screen name="food-scanner" />
+        <Stack.Screen name="chatbot" />
+        <Stack.Screen name="monument-3d" />
       </Stack>
     </>
   );

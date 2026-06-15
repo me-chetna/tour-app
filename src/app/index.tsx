@@ -156,7 +156,14 @@ export default function HomeScreen() {
                 <Text style={styles.ctaText}>Start exploring</Text>
                 <Feather name="arrow-right" size={15} color="#FFFFFF" />
               </Pressable>
-              <Text style={styles.statsText}>28 states · 100+ cities</Text>
+
+              <Pressable
+                style={({ pressed }) => [styles.cta3DButton, pressed && styles.cta3DPressed]}
+                onPress={() => router.push('/monument-3d')}
+              >
+                <Feather name="box" size={14} color="#D4654A" style={{ marginRight: 6 }} />
+                <Text style={styles.cta3DText}>3D Explorer</Text>
+              </Pressable>
             </Animated.View>
           </View>
         </View>
@@ -326,6 +333,17 @@ export default function HomeScreen() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
+      {/* Floating Chatbot Bubble */}
+      <Pressable 
+        style={({ pressed }) => [
+          styles.floatingChatBtn,
+          pressed && styles.floatingChatBtnPressed
+        ]}
+        onPress={() => router.push('/chatbot')}
+      >
+        <Feather name="message-circle" size={24} color="#FFFFFF" />
+      </Pressable>
+
       {/* Bottom Navigation */}
       <BottomNavBar />
     </View>
@@ -471,6 +489,25 @@ const styles = StyleSheet.create({
   ctaPressed: {
     opacity: 0.9,
     transform: [{ scale: 0.97 }],
+  },
+  cta3DButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#FFD1C9',
+    paddingHorizontal: 20,
+    paddingVertical: 13,
+    borderRadius: 999,
+  },
+  cta3DPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.97 }],
+  },
+  cta3DText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 13,
+    color: '#D4654A',
   },
   ctaText: {
     fontFamily: 'Inter_600SemiBold',
@@ -741,5 +778,26 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     fontSize: 11,
     color: '#D4CFC8',
+  },
+  floatingChatBtn: {
+    position: 'absolute',
+    bottom: 96,
+    right: 20,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#D4654A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 8,
+    zIndex: 99,
+  },
+  floatingChatBtnPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.95 }],
   },
 });

@@ -22,8 +22,8 @@ const navItems: NavItem[] = [
   { icon: 'home', label: 'Home', route: '/' },
   { icon: 'compass', label: 'Explore', route: '/states' },
   { icon: 'plus', label: 'Plan', route: '/states', isCenter: true },
-  { icon: 'camera', label: 'Timeline', route: '/timeline' },
-  { icon: 'user', label: 'Profile', route: '/' },
+  { icon: 'clock', label: 'Timeline', route: '/timeline' },
+  { icon: 'package', label: 'Food Scan', route: '/food-scanner' },
 ];
 
 export default function BottomNavBar() {
@@ -34,6 +34,7 @@ export default function BottomNavBar() {
     if (label === 'Home') return pathname === '/';
     if (label === 'Explore') return pathname === '/states' || pathname.startsWith('/state-detail') || pathname.startsWith('/map-planner');
     if (label === 'Timeline') return pathname === '/timeline';
+    if (label === 'Food Scan') return pathname === '/food-scanner';
     return false;
   };
 

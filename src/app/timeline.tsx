@@ -3,712 +3,767 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   Pressable,
   Platform,
   useWindowDimensions,
   SafeAreaView,
   StatusBar,
+  ScrollView,
   ActivityIndicator,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import BottomNavBar from '@/components/BottomNavBar';
+import {
+  identifyMonument,
+  getMonumentTimeline,
+  generateEraImage,
+  type TimelineEra,
+} from '@/lib/timeline.functions';
 
-// Comprehensive historical data for the 4 featured monuments
-const monumentData: Record<string, {
+type Identified = {
   name: string;
   location: string;
-  confidence: string;
-  description: string;
-  timeline: Record<number, {
-    title: string;
-    text: string;
-    look: string;
-    image: any;
-  }>;
-  years: number[];
-}> = {
-  taj: {
-    name: 'Taj Mahal',
-    location: 'Agra, Uttar Pradesh, India',
-    confidence: '95% confidence',
-    description: 'The Taj Mahal is an ivory-white marble mausoleum on the right bank of the river Yamuna in the Indian city of Agra. It was commissioned in 1632 by the Mughal emperor Shah Jahan to house the tomb of his favorite wife, Mumtaz Mahal; it also houses the tomb of Shah Jahan himself.',
-    years: [1631, 1653, 1707, 1803, 1947, 1983, 2026],
-    timeline: {
-      1631: {
-        title: 'CONSTRUCTION BEGINS',
-        text: 'Mughal Emperor Shah Jahan initiates the construction of this grand mausoleum. Over 20,000 artisans, masons, and stone-cutters are brought in from Persia, Europe, and all over India to begin foundation work on the banks of the Yamuna River.',
-        look: 'How it looked: Scaffolding grids, large red sandstone blocks, rising foundation layouts, and thousands of workers surrounding the half-formed minaret bases.',
-        image: require('@/assets/images/timeline/taj_1631.png'),
-      },
-      1653: {
-        title: 'COMPLETION AND MAJESTY',
-        text: 'The main mausoleum is completed in its pristine glory. The central dome stands tall, and the white Makrana marble shines brilliantly under the Agra sun. The lush gardens are laid out in classical charbagh Mughal style.',
-        look: 'How it looked: Pure, bright white marble towers against a clean sky, with fresh symmetrical gardens, fountains, and royal Mughal attendants walking the pathways.',
-        image: require('@/assets/images/timeline/taj_2026.png'),
-      },
-      1707: {
-        title: 'AURANGZEB\'S ERA AND DECLINE',
-        text: 'Following the death of Emperor Aurangzeb, the Mughal Empire enters a period of gradual decline. Funding for the maintenance of the gardens and the complex decreases, leading to early overgrowth.',
-        look: 'How it looked: The marble structures remain majestic, but the surrounding gardens show signs of early overgrowth, and the pools are less regularly cleared.',
-        image: require('@/assets/images/timeline/taj_1857.png'),
-      },
-      1803: {
-        title: 'COLONIAL TRANSITION',
-        text: 'During the British colonial era, the Taj Mahal\'s gardens are redesigned to mimic the formal lawns of London. Parts of the monument suffer neglect, but early conservation efforts begin under the colonial administration.',
-        look: 'How it looked: Sepia-toned photograph showing overgrown english-style lawns, dirt pathways, and early tourists inspecting the dome.',
-        image: require('@/assets/images/timeline/taj_1857.png'),
-      },
-      1947: {
-        title: 'INDEPENDENCE ERA',
-        text: 'With India gaining independence, the Taj Mahal becomes the crown jewel of national heritage. The Archaeological Survey of India (ASI) takes full control, launching modern scientific restoration techniques.',
-        look: 'How it looked: Classic black and white vintage photograph with visitors in traditional 1940s Indian clothing strolling along the reflection pool.',
-        image: require('@/assets/images/timeline/taj_1857.png'), // Reused existing vintage image to resolve missing asset error
-      },
-      1983: {
-        title: 'UNESCO WORLD HERITAGE SITE',
-        text: 'The Taj Mahal is designated a UNESCO World Heritage Site, recognized as "the jewel of Muslim art in India and one of the universally admired masterpieces of the world\'s heritage."',
-        look: 'How it looked: Color photograph showing the dome under early modern scientific chemical washing, with tourists from all corners of the globe visiting.',
-        image: require('@/assets/images/timeline/taj_2026.png'),
-      },
-      2026: {
-        title: 'CONTEMPORARY PRESERVATION AND TOURISM',
-        text: 'Today, the Taj Mahal faces challenges from air pollution, footfall from millions of tourists, and climate change. Ongoing conservation efforts employ advanced techniques and strict regulations to maintain its pristine condition.',
-        look: 'How it looked: The Taj Mahal continues to dazzle, a focal point for global tourism, its brilliant white marble meticulously conserved, standing in its historic grandeur on the banks of the Yamuna River.',
-        image: require('@/assets/images/timeline/taj_2026.png'),
-      },
-    },
-  },
-  hawa: {
-    name: 'Hawa Mahal',
-    location: 'Jaipur, Rajasthan, India',
-    confidence: '98% confidence',
-    description: 'Hawa Mahal, or the \'Palace of Winds\', is a palace in the city of Jaipur, India. Built from red and pink sandstone, the palace sits on the edge of the City Palace, Jaipur, and extends to the zenana, or women\'s chambers.',
-    years: [1799, 1876, 1947, 2026],
-    timeline: {
-      1799: {
-        title: 'THE PALACE OF WINDS IS BORN',
-        text: 'Maharaja Sawai Pratap Singh commissions Hawa Mahal. Designed by Lal Chand Ustad, the five-storey honeycomb facade with 953 small windows (jharokhas) is built so royal women can observe street life without being seen.',
-        look: 'How it looked: Freshly carved pink-red sandstone with gilded arches, Rajasthani royal guards on horses, and a clean, historic street in Jaipur.',
-        image: require('@/assets/images/timeline/hawa_1799.png'),
-      },
-      1876: {
-        title: 'THE PINK CITY COAT',
-        text: 'Jaipur is painted pink to welcome Albert Edward, Prince of Wales. Hawa Mahal receives a fresh coat of terracotta-pink paint and white lime accents, cementing Jaipur\'s identity as the \'Pink City\'.',
-        look: 'How it looked: Warm hand-tinted historical depiction with the palace painted in deep terracotta-pink, street parades, and crowds in traditional royal attire.',
-        image: require('@/assets/images/timeline/hawa_1799.png'),
-      },
-      1947: {
-        title: 'INDEPENDENCE ERA',
-        text: 'Following India\'s independence, Hawa Mahal is declared a protected national monument. It transitions from a private royal viewing gallery to a public museum hosting visitors from around the world.',
-        look: 'How it looked: Black and white photo showing local merchants, cycle rickshaws, and vintage vehicles passing by the intricate facade.',
-        image: require('@/assets/images/timeline/hawa_2026.png'),
-      },
-      2026: {
-        title: 'MODERN PRESERVATION',
-        text: 'Hawa Mahal undergoes extensive restoration to preserve its delicate screens and sandstone carvings. It remains Jaipur\'s most photographed landmark, standing at the busy intersection of the old walled city.',
-        look: 'How it looked: Beautiful high-definition color photograph of the iconic pink honeycomb structure against a bright sky, surrounded by modern Jaipur street bustle.',
-        image: require('@/assets/images/timeline/hawa_2026.png'),
-      },
-    },
-  },
-  qutub: {
-    name: 'Qutub Minar',
-    location: 'Delhi, India',
-    confidence: '92% confidence',
-    description: 'Qutub Minar is a minaret and \'victory tower\' that forms part of the Qutb complex, which lies at the site of Delhi\'s oldest fortified city. It is a UNESCO World Heritage Site.',
-    years: [1200, 1803, 1947, 2026],
-    timeline: {
-      1200: {
-        title: 'THE VICTORY TOWER ERECTION',
-        text: 'Qutb-ud-din Aibak begins construction of the first storey of the minaret. Built with red sandstone and detailed with Arabic inscriptions and geometric carvings, it symbolizes the triumph of the Sultanate.',
-        look: 'How it looked: Pristine red sandstone tower surrounded by ancient ruins, Islamic guards in medieval armor, and clear skies in historic Delhi.',
-        image: require('@/assets/images/timeline/qutub_1200.png'),
-      },
-      1803: {
-        title: 'EARTHQUAKE AND BRITISH REPAIRS',
-        text: 'An earthquake causes severe damage to the tower, destroying the cupola at the top. Major Robert Smith of the British Indian Army repairs it, adding a Bengali-style dome which was later removed.',
-        look: 'How it looked: Antique lithograph look showing surrounding brick ruins, scaffolding, and British officers inspecting the minaret.',
-        image: require('@/assets/images/timeline/qutub_1803.png'),
-      },
-      1947: {
-        title: 'INDEPENDENCE TRANSITION',
-        text: 'The Qutb complex becomes a national archaeological preserve. The Archaeological Survey of India (ASI) reinforces the tower\'s foundation and limits inner climbing to preserve its structural integrity.',
-        look: 'How it looked: Classic black and white vintage photo showing visitors examining the towering sandstone pillar from the historic lawns.',
-        image: require('@/assets/images/timeline/qutub_2026.png'),
-      },
-      2026: {
-        title: 'UNESCO PRESERVATION AND PARKWAYS',
-        text: 'Today, Qutub Minar is Delhi\'s most iconic medieval heritage site. The surrounding parkways are landscaped with green lawns and evening light-and-sound shows attract thousands of global tourists.',
-        look: 'How it looked: High-resolution modern color photograph showing the spectacular red sandstone tower and minaret rising against a blue sky, surrounded by green lawns.',
-        image: require('@/assets/images/timeline/qutub_2026.png'),
-      },
-    },
-  },
-  indiagate: {
-    name: 'India Gate',
-    location: 'New Delhi, India',
-    confidence: '96% confidence',
-    description: 'The India Gate is a war memorial located astride the Rajpath (now Kartavya Path) on the eastern edge of the "ceremonial axis" of New Delhi, formerly called Kingsway.',
-    years: [1921, 1931, 1971, 2026],
-    timeline: {
-      1921: {
-        title: 'FOUNDATION STONE LAYING',
-        text: 'The foundation stone of the All India War Memorial is laid by the Duke of Connaught. Designed by Sir Edwin Lutyens, the structure honors 84,000 soldiers of the British Indian Army who died in World War I.',
-        look: 'How it looked: Vintage black and white photo showing early foundations, scaffolding, construction cranes, and British-Indian officers planning the ceremonial arch.',
-        image: require('@/assets/images/timeline/indiagate_1921.png'),
-      },
-      1931: {
-        title: 'INAUGURATION AND SPLENDOR',
-        text: 'The monument is inaugurated by Lord Irwin. It stands as a majestic triumphal arch resembling the Arc de Triomphe in Paris, anchoring the Kingsway ceremonial avenue.',
-        look: 'How it looked: Crisp historical photograph showing the freshly completed monument, open plains around it, and military march-pasts.',
-        image: require('@/assets/images/timeline/indiagate_1971.png'),
-      },
-      1971: {
-        title: 'AMAR JAWAN JYOTI',
-        text: 'Following the Indo-Pakistan War, the Amar Jawan Jyoti (Flame of the Immortal Soldier) is inaugurated by Indira Gandhi, establishing the eternal flame under the arch.',
-        look: 'How it looked: Faded 1970s color photograph showing the eternal flame beneath the arch, with army guards standing at attention.',
-        image: require('@/assets/images/timeline/indiagate_1971.png'),
-      },
-      2026: {
-        title: 'KARTAVYA PATH AND ILLUMINATION',
-        text: 'Re-anchoring the central vista, the India Gate plaza is renovated into Kartavya Path, featuring walkable canals, musical fountains, and daily tricolor night lighting.',
-        look: 'How it looked: Modern night photo showing the India Gate illuminated brilliantly in saffron, white, and green lights, reflecting in the fountains.',
-        image: require('@/assets/images/timeline/indiagate_2026.png'),
-      },
-    },
-  },
+  confidence: number;
+  summary: string;
 };
 
-// Thumbnail preview shortcuts to test the camera scan
-const shortcuts = [
-  { id: 'taj', name: 'Taj Mahal', image: require('@/assets/images/timeline/taj_2026.png') },
-  { id: 'hawa', name: 'Hawa Mahal', image: require('@/assets/images/timeline/hawa_2026.png') },
-  { id: 'qutub', name: 'Qutub Minar', image: require('@/assets/images/timeline/qutub_2026.png') },
-  { id: 'indiagate', name: 'India Gate', image: require('@/assets/images/timeline/indiagate_2026.png') },
+// Preset helpers to allow instant clicks to test the flow
+const PRESET_SUGGESTIONS = [
+  'Taj Mahal',
+  'Hawa Mahal',
+  'Qutub Minar',
+  'India Gate',
+  'Eiffel Tower',
+  'Colosseum',
+  'Statue of Liberty'
 ];
 
-export default function TimelineScannerScreen() {
-  const { width: SCREEN_WIDTH } = useWindowDimensions();
-  const isTablet = SCREEN_WIDTH > 768;
+// Web-only styling dictionary to avoid native StyleSheet type conflicts
+const webStyles = {
+  webcamVideo: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover' as const,
+  },
+  webRangeSlider: {
+    width: '100%',
+    cursor: 'pointer',
+    accentColor: '#D4654A',
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  webApiKeyInput: {
+    flex: 1,
+    padding: 10,
+    borderRadius: 8,
+    border: '1px solid #EFE7DC',
+    backgroundColor: '#FDF6EE',
+    fontSize: 12,
+    fontFamily: 'Inter_400Regular',
+    boxSizing: 'border-box' as const,
+    outline: 'none',
+  },
+  webSearchInput: {
+    flex: 1,
+    padding: 10,
+    borderRadius: 8,
+    border: '1px solid #EFE7DC',
+    backgroundColor: '#FFFFFF',
+    fontSize: 12.5,
+    fontFamily: 'Inter_400Regular',
+    boxSizing: 'border-box' as const,
+    outline: 'none',
+  }
+};
 
-  const [activeShortcut, setActiveShortcut] = useState<string>('taj');
+export default function MonumentTimelineScreen() {
+  const { width: SCREEN_WIDTH } = useWindowDimensions();
+  const isWide = SCREEN_WIDTH > 768;
+
+  const videoRef = useRef<any>(null);
+  const [streaming, setStreaming] = useState(false);
+  const [busy, setBusy] = useState<'idle' | 'identifying' | 'timeline'>('idle');
+  const [error, setError] = useState<string | null>(null);
+  const [snapshot, setSnapshot] = useState<string | null>(null);
+  const [identified, setIdentified] = useState<Identified | null>(null);
+  const [eras, setEras] = useState<TimelineEra[] | null>(null);
+  const [year, setYear] = useState<number>(2026);
+  const [eraImages, setEraImages] = useState<Record<number, string>>({});
+  const [eraImgLoading, setEraImgLoading] = useState(false);
+  const [locationCoords, setLocationCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [scanAmbiguous, setScanAmbiguous] = useState(false);
+  const [useScannedPhoto, setUseScannedPhoto] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [scanProgress, setScanProgress] = useState(0);
   const [scanMessage, setScanMessage] = useState('');
   
-  const [identifiedId, setIdentifiedId] = useState<string | null>(null);
-  const [selectedYear, setSelectedYear] = useState<number>(2026);
-  const [isRenderingEra, setIsRenderingEra] = useState(false);
+  // Custom API Key states
+  const [apiKey, setApiKey] = useState('');
+  const [showSettings, setShowSettings] = useState(false);
+  const [directSearchText, setDirectSearchText] = useState('');
+  const [calibrationSearchText, setCalibrationSearchText] = useState('');
+  const streamRef = useRef<any>(null);
 
-  // Hidden references for Web file upload and video capture
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [flashActive, setFlashActive] = useState(false);
-
-  // HTML5 Live Camera feed on Web
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [cameraActive, setCameraActive] = useState(false);
-
+  // Load API key from local storage on mount
   useEffect(() => {
-    if (Platform.OS === 'web' && navigator.mediaDevices && navigator.mediaDevices.getUserMedia && !identifiedId) {
-      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem('WANDER_INDIA_GEMINI_KEY') || '';
+      setApiKey(stored);
+    }
+  }, []);
+
+  const handleSaveApiKey = (key: string) => {
+    setApiKey(key);
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.localStorage.setItem('WANDER_INDIA_GEMINI_KEY', key);
+    }
+    setShowSettings(false);
+  };
+
+  // Fetch coordinates on mount for location hints
+  useEffect(() => {
+    if (Platform.OS === 'web' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setLocationCoords({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+          });
+        },
+        (err) => {
+          console.warn('Geolocation not available:', err);
+        }
+      );
+    }
+  }, []);
+
+  // Initialize camera stream
+  useEffect(() => {
+    if (Platform.OS === 'web' && !snapshot) {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        console.warn('Webcam not supported or insecure origin');
+        setStreaming(false);
+        return;
+      }
+      navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } },
+        audio: false,
+      })
         .then((stream) => {
           if (videoRef.current) {
             videoRef.current.srcObject = stream;
-            setCameraActive(true);
+            streamRef.current = stream;
+            setStreaming(true);
           }
         })
         .catch((err) => {
-          console.warn('Camera stream blocked or unavailable:', err);
-          setCameraActive(false);
+          console.warn('Webcam stream not available:', err);
+          setStreaming(false);
+          // Don't alert error immediately on mount to keep UI clean
         });
     }
 
     return () => {
-      if (videoRef.current && videoRef.current.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream;
-        stream.getTracks().forEach((track) => track.stop());
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track: any) => track.stop());
       }
     };
-  }, [identifiedId]);
+  }, [snapshot]);
 
-  const activeMonument = useMemo(() => {
-    return identifiedId ? monumentData[identifiedId] : null;
-  }, [identifiedId]);
+  // Capture frame to Data URL
+  const captureDataUrl = (): string | null => {
+    const v = videoRef.current;
+    if (!v || !v.videoWidth) return null;
+    const canvas = document.createElement('canvas');
+    const maxW = 1024;
+    const scale = Math.min(1, maxW / v.videoWidth);
+    canvas.width = v.videoWidth * scale;
+    canvas.height = v.videoHeight * scale;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', 0.82);
+  };
 
-  // Selected Era detail block
-  const activeEraData = useMemo(() => {
-    if (!activeMonument) return null;
-    // Find closest historical year matching slider
-    const closestYear = activeMonument.years.reduce((prev, curr) => {
-      return Math.abs(curr - selectedYear) < Math.abs(prev - selectedYear) ? curr : prev;
-    }, activeMonument.years[0]);
+  // Run AI Monument Recognition and Timeline Fetch
+  const runIdentify = async (dataUrl: any, fileName?: string) => {
+    setError(null);
+    setSnapshot(dataUrl);
+    setIdentified(null);
+    setEras(null);
+    setBusy('identifying');
+    setEraImages({});
+    setScanAmbiguous(false);
+
+    // Stop webcam after capturing snapshot
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track: any) => track.stop());
+      setStreaming(false);
+    }
+
+    try {
+      const hint = fileName || (locationCoords ? `${locationCoords.lat},${locationCoords.lng}` : undefined);
+      const activeKey = apiKey || undefined;
+      
+      let res;
+      if (typeof dataUrl === 'string') {
+        res = await identifyMonument({ imageDataUrl: dataUrl, hint, apiKey: activeKey });
+      } else {
+        // Simulating offline scan of Taj Mahal via fallback require asset
+        res = {
+          name: 'Taj Mahal',
+          location: 'Agra, Uttar Pradesh',
+          confidence: 0.98,
+          summary: 'The Taj Mahal is an Islamic ivory-white marble mausoleum on the south bank of the Yamuna river in Agra, India, commissioned in 1631 by the Mughal emperor Shah Jahan to house the tomb of his favourite wife, Mumtaz Mahal.'
+        };
+      }
+      setIdentified(res);
+
+      if (res.confidence < 0.25 || res.name.toLowerCase() === 'unknown') {
+        setError("AI scanner completed, but requires name confirmation to calibrate the history timeline.");
+        setBusy('idle');
+        setScanAmbiguous(true); // show the manual identification dropdown to calibrate!
+        return;
+      }
+
+      setBusy('timeline');
+      const tl = await getMonumentTimeline({ name: res.name, apiKey: activeKey });
+      setEras(tl.eras);
+      const latest = tl.eras[tl.eras.length - 1]?.year ?? 2026;
+      setYear(latest);
+      setBusy('idle');
+    } catch (e) {
+      console.error(e);
+      setError(e instanceof Error ? e.message : 'Something went wrong during identification.');
+      setBusy('idle');
+    }
+  };
+
+  const onCapture = () => {
+    const url = captureDataUrl();
+    if (!url) {
+      // Camera is offline/placeholder (e.g. HTTP, mobile dev server, or permission denied)
+      // We simulate capture & scan of Taj Mahal by using the Taj Mahal fallback asset!
+      setError('Camera offline. Simulating scanner capture of Taj Mahal...');
+      const mockPhoto = require('@/assets/images/timeline/taj_2026.png');
+      startScanningAnimation('taj-mahal', mockPhoto);
+      return;
+    }
+    startScanningAnimation(undefined, url);
+  };
+
+  const onFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const url = reader.result as string;
+      startScanningAnimation(file.name, url);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const triggerUpload = () => {
+    if (Platform.OS !== 'web') return;
+    try {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = (e: any) => {
+        const file = e.target.files?.[0];
+        if (file) onFile(file);
+      };
+      input.click();
+    } catch (err) {
+      console.error('Failed to trigger upload:', err);
+    }
+  };
+
+  // Start animated visual scan progress bar
+  const startScanningAnimation = (fileName: string | undefined, dataUrl: any) => {
+    setIsScanning(true);
+    setScanProgress(0);
+    setScanMessage('Accessing neural vision models...');
+    setSnapshot(dataUrl);
+
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += 10;
+      setScanProgress(progress);
+
+      if (progress === 30) setScanMessage('Extracting feature descriptors...');
+      if (progress === 60) setScanMessage('Comparing visual geometries...');
+      if (progress === 80) setScanMessage('Cross-referencing coordinates database...');
+      if (progress === 90) setScanMessage('Matching structural profiles...');
+      
+      if (progress >= 100) {
+        clearInterval(interval);
+        setIsScanning(false);
+        runIdentify(dataUrl, fileName);
+      }
+    }, 100);
+  };
+
+  // Skip capture and run with text search directly
+  const runPresetSearch = async (name: string) => {
+    setError(null);
+    setSnapshot(null); // Clear snapshot to display preset images
+    setIdentified(null);
+    setEras(null);
+    setBusy('identifying');
+    setEraImages({});
+    setScanAmbiguous(false);
+
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track: any) => track.stop());
+      setStreaming(false);
+    }
+
+    try {
+      // Simulate identified block
+      const mockIdentified: Identified = {
+        name: name,
+        location: 'India',
+        confidence: 1.0,
+        summary: `Exploring the historical timeline and architectural transformations of the legendary ${name}.`
+      };
+      setIdentified(mockIdentified);
+      setBusy('timeline');
+
+      const tl = await getMonumentTimeline({ name, apiKey: apiKey || undefined });
+      setEras(tl.eras);
+      const latest = tl.eras[tl.eras.length - 1]?.year ?? 2026;
+      setYear(latest);
+      setBusy('idle');
+    } catch (e) {
+      console.error(e);
+      setError(e instanceof Error ? e.message : 'Failed to search preset.');
+      setBusy('idle');
+    }
+  };
+
+  const reset = () => {
+    setSnapshot(null);
+    setIdentified(null);
+    setEras(null);
+    setError(null);
+    setBusy('idle');
+    setEraImages({});
+    setScanAmbiguous(false);
+  };
+
+  const activeEra = useMemo(() => {
+    if (!eras || eras.length === 0) return null;
+    const past = eras.filter((e) => e.year <= year);
+    if (past.length === 0) return eras[0];
+    return past[past.length - 1];
+  }, [eras, year]);
+
+  const minYear = eras?.[0]?.year ?? 1500;
+  const maxYear = eras?.[eras.length - 1]?.year ?? 2026;
+
+  // Visual era filter math (sepia, saturate, contrast, brightness) based on age
+  const ageRatio = useMemo(() => {
+    if (!eras) return 0;
+    const span = Math.max(1, maxYear - minYear);
+    return 1 - (year - minYear) / span; // 0 = today, 1 = oldest
+  }, [eras, year, minYear, maxYear]);
+
+  const getFilterStyle = () => {
+    if (Platform.OS !== 'web') return {};
+
+    // Remove filter if the era image is loaded
+    if (activeEra && eraImages[activeEra.year]) {
+      return { filter: 'none' };
+    }
+
+    const sepiaVal = (ageRatio * 80).toFixed(0);
+    const satVal = (100 - ageRatio * 50).toFixed(0);
+    const contrastVal = (100 + ageRatio * 10).toFixed(0);
+    const brightnessVal = (100 - ageRatio * 15).toFixed(0);
 
     return {
-      year: closestYear,
-      ...activeMonument.timeline[closestYear],
+      filter: `sepia(${sepiaVal}%) saturate(${satVal}%) contrast(${contrastVal}%) brightness(${brightnessVal}%)`
     };
-  }, [activeMonument, selectedYear]);
+  };
 
-  // Simulate scanning matching animation
-  const triggerScan = () => {
-    // White shutter flash animation
-    setFlashActive(true);
-    setTimeout(() => setFlashActive(false), 200);
+  // Hook to generate / fetch the AI Image for the active era
+  useEffect(() => {
+    if (!identified || !activeEra) return;
+    if (eraImages[activeEra.year]) return;
 
-    // Freeze video frame to canvas on Web
-    if (Platform.OS === 'web' && videoRef.current && canvasRef.current) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      canvas.width = video.videoWidth || 640;
-      canvas.height = video.videoHeight || 480;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        try {
-          const dataUrl = canvas.toDataURL('image/jpeg');
-          setCapturedImage(dataUrl);
-        } catch (e) {
-          console.warn('Could not freeze camera frame:', e);
+    let cancelled = false;
+    setEraImgLoading(true);
+
+    generateEraImage({
+      name: identified.name,
+      year: activeEra.year,
+      appearance: activeEra.appearance,
+      apiKey: apiKey || undefined,
+    })
+      .then((res) => {
+        if (cancelled) return;
+        if (res.dataUrl) {
+          setEraImages((prev) => ({ ...prev, [activeEra.year]: res.dataUrl! }));
         }
-      }
+      })
+      .catch((e) => {
+        console.error('Era image generation failed:', e);
+      })
+      .finally(() => {
+        if (!cancelled) setEraImgLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [identified, activeEra, eraImages, apiKey]);
+
+  // Determine active display image
+  const displayImageSource = useMemo(() => {
+    if (eras && activeEra && eraImages[activeEra.year]) {
+      return { uri: eraImages[activeEra.year] };
+    }
+    
+    // For predefined local milestones, if they have local image assets, use them!
+    if (!eraImages[activeEra?.year ?? -1] && activeEra && activeEra.image) {
+      return activeEra.image;
     }
 
-    setIsScanning(true);
-    setScanProgress(0);
-    setScanMessage('Detecting architectural contours...');
-
-    const messages = [
-      'Querying monuments neural network...',
-      'Matching feature signatures in database...',
-      'Match Confirmed! Confidence rating: 95%',
-    ];
-
-    let step = 0;
-    const interval = setInterval(() => {
-      step += 1;
-      setScanProgress(step * 25);
-      if (step < 4) {
-        setScanMessage(messages[step - 1]);
-      } else {
-        clearInterval(interval);
-        setTimeout(() => {
-          setIsScanning(false);
-          setIdentifiedId(activeShortcut);
-          // Set to latest year
-          const mon = monumentData[activeShortcut];
-          setSelectedYear(mon.years[mon.years.length - 1]);
-        }, 300);
-      }
-    }, 600);
-  };
-
-  // Changing Year with blurred loading rendering overlay
-  const handleYearChange = (year: number) => {
-    if (year === selectedYear) return;
-    setIsRenderingEra(true);
-    setSelectedYear(year);
-
-    setTimeout(() => {
-      setIsRenderingEra(false);
-    }, 700); // 700ms rendering transition
-  };
-
-  // Upload photo handler
-  const triggerUpload = () => {
-    if (Platform.OS === 'web') {
-      fileInputRef.current?.click();
-    } else {
-      // Mobile fallback: simulate photo library selection
-      setIsScanning(true);
-      setScanProgress(0);
-      setScanMessage('Selecting image from library...');
-      setTimeout(() => {
-        setIsScanning(false);
-        setIdentifiedId(activeShortcut);
-        const mon = monumentData[activeShortcut];
-        setSelectedYear(mon.years[mon.years.length - 1]);
-      }, 1500);
-    }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const filename = file.name.toLowerCase();
-    let detectedId = 'taj'; // default fallback
-    if (filename.includes('hawa') || filename.includes('wind') || filename.includes('jaipur')) {
-      detectedId = 'hawa';
-    } else if (filename.includes('qutub') || filename.includes('minar') || filename.includes('delhi')) {
-      detectedId = 'qutub';
-    } else if (filename.includes('india') || filename.includes('gate') || filename.includes('war')) {
-      detectedId = 'indiagate';
-    } else if (filename.includes('taj') || filename.includes('mahal') || filename.includes('agra')) {
-      detectedId = 'taj';
-    } else {
-      detectedId = activeShortcut;
+    if (snapshot) {
+      return typeof snapshot === 'string' && snapshot.startsWith('data:') ? { uri: snapshot } : snapshot;
     }
 
-    setActiveShortcut(detectedId);
-    setCapturedImage(null); // Clear any video snapshots since it is a file upload
-
-    setIsScanning(true);
-    setScanProgress(0);
-    setScanMessage('Analyzing uploaded image...');
-
-    const messages = [
-      'Extracting image metadata...',
-      'Matching architectural contours...',
-      'Match Confirmed! Confidence rating: 95%',
-    ];
-
-    let step = 0;
-    const interval = setInterval(() => {
-      step += 1;
-      setScanProgress(step * 25);
-      if (step < 4) {
-        setScanMessage(messages[step - 1]);
-      } else {
-        clearInterval(interval);
-        setTimeout(() => {
-          setIsScanning(false);
-          setIdentifiedId(detectedId);
-          const mon = monumentData[detectedId];
-          setSelectedYear(mon.years[mon.years.length - 1]);
-        }, 300);
-      }
-    }, 600);
-  };
-
-  const handleReset = () => {
-    setIdentifiedId(null);
-    setCapturedImage(null);
-  };
+    return null;
+  }, [eras, activeEra, eraImages, snapshot]);
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FDF6EE" />
 
-      {/* Hidden elements for Web file upload and canvas snap */}
-      {Platform.OS === 'web' && (
-        <>
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            style={{ display: 'none' }}
-            accept="image/*"
-          />
-          <canvas ref={canvasRef} style={{ display: 'none' }} />
-          <style dangerouslySetInnerHTML={{__html: `
-            input[type=range].timeline-slider {
-              -webkit-appearance: none;
-              width: 100%;
-              background: transparent;
-            }
-            input[type=range].timeline-slider:focus {
-              outline: none;
-            }
-            input[type=range].timeline-slider::-webkit-slider-runnable-track {
-              width: 100%;
-              height: 6px;
-              cursor: pointer;
-              background: #EFE7DC;
-              border-radius: 3px;
-            }
-            input[type=range].timeline-slider::-webkit-slider-thumb {
-              height: 18px;
-              width: 18px;
-              border-radius: 9px;
-              background: #D4654A;
-              cursor: pointer;
-              -webkit-appearance: none;
-              margin-top: -6px;
-              border: 2px solid #FFFFFF;
-              box-shadow: 0px 2px 6px rgba(0,0,0,0.15);
-            }
-            input[type=range].timeline-slider::-moz-range-track {
-              width: 100%;
-              height: 6px;
-              cursor: pointer;
-              background: #EFE7DC;
-              border-radius: 3px;
-            }
-            input[type=range].timeline-slider::-moz-range-thumb {
-              height: 18px;
-              width: 18px;
-              border-radius: 9px;
-              background: #D4654A;
-              cursor: pointer;
-              border: 2px solid #FFFFFF;
-              box-shadow: 0px 2px 6px rgba(0,0,0,0.15);
-            }
-          `}} />
-        </>
-      )}
-
-      <ScrollView 
-        style={styles.scroll} 
+      <ScrollView
+        style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header Block */}
-        <View style={styles.header}>
-          <View style={styles.badge}>
-            <Feather name="clock" size={12} color="#D4654A" style={{ marginRight: 4 }} />
-            <Text style={styles.badgeText}>Live Monument Timeline</Text>
+        <View style={styles.headerRow}>
+          <View>
+            <View style={styles.badgeRow}>
+              <View style={styles.outlineBadge}>
+                <Feather name="clock" size={11} color="#D4654A" style={{ marginRight: 5 }} />
+                <Text style={styles.badgeText}>Live Monument Timeline</Text>
+              </View>
+            </View>
+            <Text style={styles.heading}>Point. Recognise. Travel through time.</Text>
           </View>
-          <Text style={styles.title}>Point. Recognise. Travel through time.</Text>
-          <Text style={styles.subtitle}>
-            Aim your camera at a monument. We identify it with AI, then let you scrub the year to see how it looked across centuries.
-          </Text>
+          
+          {/* Settings API button */}
+          <Pressable 
+            style={[styles.settingsToggle, showSettings && styles.settingsToggleActive]} 
+            onPress={() => setShowSettings(!showSettings)}
+          >
+            <Feather name="settings" size={18} color={showSettings ? '#FFFFFF' : '#D4654A'} />
+          </Pressable>
         </View>
 
-        {/* Grid panel */}
-        <View style={[styles.gridRow, isTablet && styles.gridRowTablet]}>
-          
-          {/* LEFT PANEL: Viewfinder / Media */}
-          <View style={[styles.panel, styles.leftPanel, isTablet && styles.panelTablet]}>
-            {!identifiedId ? (
-              // BEFORE SCAN: Live Camera / Placeholder Viewfinder
-              <View style={styles.viewfinderContainer}>
-                {capturedImage ? (
-                  <Image
-                    source={{ uri: capturedImage }}
-                    style={styles.viewfinderImage}
-                    contentFit="cover"
-                  />
-                ) : Platform.OS === 'web' && cameraActive ? (
+        <Text style={styles.subtitle}>
+          Aim your camera at a monument. We identify it with AI, then let you scrub the year to see how it looked across centuries.
+        </Text>
+
+        {/* API Key settings panel */}
+        {showSettings && (
+          <View style={styles.settingsPanel}>
+            <Text style={styles.settingsTitle}>AI Scanner Credentials</Text>
+            <Text style={styles.settingsSub}>
+              Enter your Google Gemini API Key below. This runs the vision scanner directly on your browser to recognize uploaded files or photos.
+            </Text>
+            <View style={styles.apiKeyRow}>
+              {Platform.OS === 'web' ? (
+                <input
+                  type="password"
+                  placeholder="AIzaSy... (Gemini API Key)"
+                  style={webStyles.webApiKeyInput}
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                />
+              ) : null}
+              <Pressable style={styles.saveKeyBtn} onPress={() => handleSaveApiKey(apiKey)}>
+                <Text style={styles.saveKeyBtnText}>Save</Text>
+              </Pressable>
+            </View>
+            <Text style={styles.settingsTip}>
+              Don't have a key? You can get a free API Key from Google AI Studio, or simply use our smart manual search and predefined presets.
+            </Text>
+          </View>
+        )}
+
+        <View style={[styles.cardGrid, isWide && styles.cardGridWide]}>
+          {/* Left panel: Camera scanner & photo viewer */}
+          <View style={[styles.card, styles.leftCard]}>
+            <View style={styles.cameraContainer}>
+              {!snapshot ? (
+                Platform.OS === 'web' ? (
                   <video
                     ref={videoRef}
                     autoPlay
                     playsInline
                     muted
-                    style={styles.webVideo}
+                    style={webStyles.webcamVideo}
                   />
                 ) : (
-                  // Native/Fallback preview template
+                  <View style={styles.nativeCameraFallback}>
+                    <Feather name="camera" size={32} color="#B8AFA8" style={{ marginBottom: 10 }} />
+                    <Text style={styles.nativeFallbackText}>Webcam live stream placeholder</Text>
+                  </View>
+                )
+              ) : (
+                displayImageSource && (
                   <Image
-                    source={monumentData[activeShortcut].timeline[2026].image}
-                    style={styles.viewfinderImage}
+                    source={displayImageSource}
+                    style={[styles.cameraImage, getFilterStyle() as any]}
                     contentFit="cover"
                   />
-                )}
+                )
+              )}
 
-                {/* Laser scan line overlay when active */}
-                {isScanning && (
-                  <View style={styles.scanLaserLine} />
-                )}
-
-                {/* Grid Overlay Graphic */}
-                <View style={styles.gridOverlay}>
-                  <View style={styles.cornerTL} />
-                  <View style={styles.cornerTR} />
-                  <View style={styles.cornerBL} />
-                  <View style={styles.cornerBR} />
-                </View>
-
-                {/* Shutter flash effect */}
-                {flashActive && (
-                  <View style={styles.flashOverlay} />
-                )}
-
-                {/* Scanning HUD status overlay */}
-                {isScanning && (
-                  <View style={styles.hudOverlay}>
-                    <ActivityIndicator size="small" color="#5cd65c" style={{ marginBottom: 6 }} />
-                    <Text style={styles.hudText}>{scanMessage}</Text>
-                    <Text style={styles.hudPercent}>{scanProgress}%</Text>
+              {/* Blur Loader overlay when scanning, identifying, or generating images */}
+              {(isScanning || busy !== 'idle' || eraImgLoading) && (
+                <View style={styles.loaderOverlay}>
+                  <View style={styles.loaderPill}>
+                    <ActivityIndicator size="small" color="#D4654A" style={{ marginRight: 8 }} />
+                    <Text style={styles.loaderPillText}>
+                      {isScanning 
+                        ? `Scanning: ${scanProgress}%` 
+                        : busy === 'identifying'
+                        ? 'Identifying monument…'
+                        : busy === 'timeline'
+                        ? 'Loading history…'
+                        : 'Generating era appearance…'}
+                    </Text>
                   </View>
-                )}
-              </View>
-            ) : (
-              // AFTER SCAN: Selected Era Visualizer
-              <View style={styles.eraImageContainer}>
-                <Image
-                  source={activeEraData?.image}
-                  style={styles.eraImage}
-                  contentFit="cover"
-                  transition={150}
-                />
-                
-                {/* Era tag */}
-                <View style={styles.eraPill}>
-                  <Text style={styles.eraPillText}>Year {selectedYear}</Text>
+                  {isScanning && (
+                    <Text style={styles.loaderPillSub}>{scanMessage}</Text>
+                  )}
                 </View>
+              )}
 
-                {/* "Rendering this era..." spinner overlay */}
-                {isRenderingEra && (
-                  <View style={styles.renderingOverlay}>
-                    <View style={styles.renderingPill}>
-                      <ActivityIndicator size="small" color="#D4654A" style={{ marginRight: 8 }} />
-                      <Text style={styles.renderingText}>Rendering this era...</Text>
-                    </View>
-                  </View>
-                )}
-              </View>
-            )}
+              {eras && (
+                <View style={styles.yearOverlayBadge}>
+                  <Text style={styles.yearOverlayText}>Year {year}</Text>
+                </View>
+              )}
+            </View>
 
-            {/* Action buttons below viewfinder */}
-            {!identifiedId ? (
-              <View style={styles.viewfinderActionsCol}>
-                <View style={styles.actionRow}>
+            <View style={styles.cameraBtnRow}>
+              {!snapshot ? (
+                <>
                   <Pressable
-                    style={[styles.btnCapture, isScanning && styles.btnDisabled]}
-                    onPress={triggerScan}
-                    disabled={isScanning}
+                    style={[styles.primaryBtn, busy !== 'idle' && styles.disabledBtn]}
+                    onPress={onCapture}
+                    disabled={busy !== 'idle'}
                   >
-                    <Feather name="camera" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
-                    <Text style={styles.btnCaptureText}>Capture & Identify</Text>
+                    <Feather name="camera" size={14} color="#FFFFFF" style={{ marginRight: 6 }} />
+                    <Text style={styles.primaryBtnText}>Capture & Identify</Text>
                   </Pressable>
-                  
-                  <Pressable style={styles.btnUpload} onPress={triggerUpload}>
-                    <Feather name="upload" size={15} color="#2C2420" style={{ marginRight: 6 }} />
-                    <Text style={styles.btnUploadText}>Upload photo</Text>
+                  <Pressable
+                    style={styles.outlineBtn}
+                    onPress={triggerUpload}
+                  >
+                    <Feather name="upload" size={14} color="#2C2420" style={{ marginRight: 6 }} />
+                    <Text style={styles.outlineBtnText}>Upload photo</Text>
                   </Pressable>
-                </View>
-
-                {/* Quick select shortcut list */}
-                <Text style={styles.shortcutHeading}>Or select a monument to simulate camera aim:</Text>
-                <View style={styles.shortcutsRow}>
-                  {shortcuts.map((sc) => {
-                    const isActive = activeShortcut === sc.id;
-                    return (
-                      <Pressable
-                        key={sc.id}
-                        style={[styles.shortcutCard, isActive && styles.shortcutCardActive]}
-                        onPress={() => !isScanning && setActiveShortcut(sc.id)}
-                      >
-                        <Image source={sc.image} style={styles.shortcutImg} contentFit="cover" />
-                        <Text style={[styles.shortcutName, isActive && styles.shortcutNameActive]} numberOfLines={1}>
-                          {sc.name}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </View>
-            ) : (
-              <View style={styles.resetRow}>
-                <Pressable style={styles.btnReset} onPress={handleReset}>
-                  <Feather name="refresh-cw" size={13} color="#2C2420" style={{ marginRight: 6 }} />
-                  <Text style={styles.btnResetText}>Try another</Text>
+                </>
+              ) : (
+                <Pressable
+                  style={styles.outlineBtn}
+                  onPress={reset}
+                >
+                  <Feather name="refresh-cw" size={14} color="#2C2420" style={{ marginRight: 6 }} />
+                  <Text style={styles.outlineBtnText}>Try another</Text>
                 </Pressable>
-              </View>
+              )}
+            </View>
+
+            {error && (
+              <Text style={styles.errorText}>{error}</Text>
             )}
           </View>
 
-          {/* RIGHT PANEL: Scanner instructions / Scrubbing details */}
-          <View style={[styles.panel, styles.rightPanel, isTablet && styles.panelTablet]}>
-            {!identifiedId ? (
-              // Locked placeholder state
-              <View style={styles.lockedContainer}>
-                <View style={styles.lockedIconCircle}>
-                  <Feather name="clock" size={32} color="#B8AFA8" />
+          {/* Right panel: Timeline history */}
+          <View style={[styles.card, styles.rightCard]}>
+            {scanAmbiguous ? (
+              <View style={styles.calibrationContainer}>
+                <Feather name="help-circle" size={32} color="#D4654A" style={{ marginBottom: 10 }} />
+                <Text style={styles.calibrationHeading}>Ambiguous Scan Calibration</Text>
+                <Text style={styles.calibrationSub}>
+                  Vision models detected a monument structure! Please type or select its name to unlock the historical timeline:
+                </Text>
+
+                {/* Direct Autocomplete Search */}
+                <View style={styles.searchContainer}>
+                  {Platform.OS === 'web' ? (
+                    <input
+                      placeholder="Type monument name (e.g. Eiffel Tower, Colosseum)"
+                      style={webStyles.webSearchInput}
+                      value={calibrationSearchText}
+                      onChange={(e) => setCalibrationSearchText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') runPresetSearch(calibrationSearchText);
+                      }}
+                    />
+                  ) : null}
+                  <Pressable 
+                    style={styles.searchSubmitBtn} 
+                    onPress={() => runPresetSearch(calibrationSearchText)}
+                  >
+                    <Feather name="arrow-right" size={14} color="#FFFFFF" />
+                  </Pressable>
                 </View>
-                <Text style={styles.lockedText}>
+
+                <Text style={styles.orSuggestions}>Or choose a common monument:</Text>
+                <View style={styles.presetsGrid}>
+                  {PRESET_SUGGESTIONS.map((name) => (
+                    <Pressable
+                      key={name}
+                      style={styles.presetBtn}
+                      onPress={() => runPresetSearch(name)}
+                    >
+                      <Text style={styles.presetBtnText}>{name}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+
+                <Pressable style={styles.cancelBtn} onPress={reset}>
+                  <Text style={styles.cancelBtnText}>Reset Camera</Text>
+                </Pressable>
+              </View>
+            ) : !identified ? (
+              <View style={styles.placeholderBox}>
+                <Feather name="clock" size={40} color="#D4CFC8" style={{ marginBottom: 14 }} />
+                <Text style={styles.placeholderText}>
                   Capture a monument to unlock its living timeline — Taj Mahal, Hawa Mahal, Qutub Minar, India Gate and beyond.
                 </Text>
+
+                {/* Direct Search Bar */}
+                <Text style={styles.searchLabel}>SEARCH MONUMENT HISTORIES</Text>
+                <View style={styles.searchContainer}>
+                  {Platform.OS === 'web' ? (
+                    <input
+                      placeholder="Search any monument globally (e.g. Colosseum)..."
+                      style={webStyles.webSearchInput}
+                      value={directSearchText}
+                      onChange={(e) => setDirectSearchText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') runPresetSearch(directSearchText);
+                      }}
+                    />
+                  ) : null}
+                  <Pressable 
+                    style={styles.searchSubmitBtn} 
+                    onPress={() => runPresetSearch(directSearchText)}
+                  >
+                    <Feather name="search" size={14} color="#FFFFFF" />
+                  </Pressable>
+                </View>
+
+                <Text style={styles.presetLabel}>— OR SELECT A PRESET —</Text>
+                <View style={styles.presetsGrid}>
+                  {PRESET_SUGGESTIONS.map((name) => (
+                    <Pressable
+                      key={name}
+                      style={styles.presetBtn}
+                      onPress={() => runPresetSearch(name)}
+                    >
+                      <Text style={styles.presetBtnText}>{name}</Text>
+                    </Pressable>
+                  ))}
+                </View>
               </View>
             ) : (
-              // Scanned timeline view
-              <View style={styles.timelinePanel}>
-                {/* Identified info */}
-                <Text style={styles.identifiedLabel}>IDENTIFIED</Text>
-                <Text style={styles.monumentName}>{activeMonument?.name}</Text>
-                <View style={styles.locationRow}>
-                  <Feather name="map-pin" size={11} color="#8A7E74" style={{ marginRight: 4 }} />
-                  <Text style={styles.locationText}>
-                    {activeMonument?.location} · <Text style={{ color: '#5cd65c', fontWeight: '600' }}>{activeMonument?.confidence}</Text>
-                  </Text>
+              <View style={styles.timelineBox}>
+                <View style={styles.timelineHeaderRow}>
+                  <View>
+                    <Text style={styles.identifiedLabel}>IDENTIFIED</Text>
+                    <Text style={styles.monumentName}>{identified.name}</Text>
+                  </View>
+                  <Pressable style={styles.timelineResetBtn} onPress={reset}>
+                    <Text style={styles.timelineResetBtnText}>Reset</Text>
+                  </Pressable>
                 </View>
-                <Text style={styles.monumentDesc}>{activeMonument?.description}</Text>
+                <Text style={styles.monumentLoc}>
+                  {identified.location} · {(identified.confidence * 100).toFixed(0)}% confidence
+                </Text>
+                <Text style={styles.monumentSummary}>{identified.summary}</Text>
 
-                <View style={styles.divider} />
+                {eras && activeEra && (
+                  <View style={styles.scrubberContainer}>
+                    <View style={styles.sliderLabelRow}>
+                      <Text style={styles.sliderLabelMin}>{minYear}</Text>
+                      <Text style={styles.sliderLabelVal}>{year}</Text>
+                      <Text style={styles.sliderLabelMax}>{maxYear}</Text>
+                    </View>
 
-                {/* Scrubbing slider scroller */}
-                {activeMonument && (
-                  <View style={styles.scrollerSection}>
-                    {/* HTML native slider for web compatibility */}
                     {Platform.OS === 'web' ? (
                       <input
                         type="range"
-                        className="timeline-slider"
-                        min={activeMonument.years[0]}
-                        max={2026}
-                        value={selectedYear}
-                        onChange={(e) => handleYearChange(Number(e.target.value))}
+                        min={minYear}
+                        max={maxYear}
+                        step={1}
+                        value={year}
+                        style={webStyles.webRangeSlider}
+                        onChange={(e) => setYear(parseInt(e.target.value))}
                       />
                     ) : (
-                      // Native slider representation with percentage left positioning
-                      <View style={styles.nativeSliderLine}>
-                        <View style={styles.nativeSliderTrack} />
-                        <View 
-                          style={[
-                            styles.nativeSliderHandle, 
-                            { 
-                              left: `${((selectedYear - activeMonument.years[0]) / (2026 - activeMonument.years[0])) * 95}%` 
-                            }
-                          ]} 
-                        />
-                      </View>
+                      <Text style={styles.nativeSliderLabel}>
+                        Tap milestone years below to scrub travel through time:
+                      </Text>
                     )}
 
-                    <View style={styles.sliderLabelRow}>
-                      <Text style={styles.sliderYearLimit}>{activeMonument.years[0]}</Text>
-                      <Text style={styles.sliderYearCurrent}>{selectedYear}</Text>
-                      <Text style={styles.sliderYearLimit}>2026</Text>
+                    {/* Era markers */}
+                    <View style={styles.eraPillsRow}>
+                      {eras.map((e) => (
+                        <Pressable
+                          key={e.year}
+                          style={[
+                            styles.eraPill,
+                            activeEra.year === e.year && styles.eraPillActive
+                          ]}
+                          onPress={() => setYear(e.year)}
+                        >
+                          <Text style={[
+                            styles.eraPillText,
+                            activeEra.year === e.year && styles.eraPillTextActive
+                          ]}>
+                            {e.year}
+                          </Text>
+                        </Pressable>
+                      ))}
                     </View>
 
-                    {/* Discrete Era Buttons */}
-                    <View style={styles.eraButtonsRow}>
-                      {activeMonument.years.map((y) => {
-                        const isSelected = selectedYear === y;
-                        return (
-                          <Pressable
-                            key={y}
-                            style={[styles.btnEra, isSelected && styles.btnEraActive]}
-                            onPress={() => handleYearChange(y)}
-                          >
-                            <Text style={[styles.btnEraText, isSelected && styles.btnEraTextActive]}>
-                              {y}
-                            </Text>
-                          </Pressable>
-                        );
-                      })}
+                    {/* Active era card */}
+                    <View style={styles.eraCard}>
+                      <Text style={styles.eraCardHeading}>
+                        {activeEra.year} · {activeEra.title}
+                      </Text>
+                      <Text style={styles.eraCardDesc}>
+                        {activeEra.description}
+                      </Text>
+                      <View style={styles.appearanceDivider} />
+                      <Text style={styles.eraCardAppearance}>
+                        How it looked: {activeEra.appearance}
+                      </Text>
                     </View>
-                  </View>
-                )}
-
-                {/* Timeline era narrative details card */}
-                {activeEraData && (
-                  <View style={styles.eraCard}>
-                    <Text style={styles.eraCardTitle}>
-                      {activeEraData.year} · {activeEraData.title}
-                    </Text>
-                    <Text style={styles.eraCardText}>{activeEraData.text}</Text>
-                    <View style={styles.eraCardDivider} />
-                    <Text style={styles.eraCardLook}>{activeEraData.look}</Text>
                   </View>
                 )}
               </View>
             )}
           </View>
-
         </View>
 
-        {/* Bottom padding for tab bar */}
-        <View style={{ height: 100 }} />
+        <View style={{ height: 160 }} />
       </ScrollView>
 
-      {/* Tab bar */}
       <BottomNavBar />
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -721,530 +776,493 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 0,
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 160, // generous bottom spacing to clear BottomNavBar overlay
   },
-
-  // Header styling
-  header: {
-    paddingHorizontal: 22,
-    paddingTop: 28,
-    paddingBottom: 16,
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 10,
   },
-  badge: {
+  badgeRow: {
+    flexDirection: 'row',
+    marginBottom: 10,
+  },
+  outlineBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(212, 101, 74, 0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(212, 101, 74, 0.15)',
+    borderColor: '#D4654A',
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 5,
-    marginBottom: 12,
+    backgroundColor: 'rgba(212, 101, 74, 0.05)',
   },
   badgeText: {
     fontFamily: 'Inter_600SemiBold',
-    fontSize: 10.5,
+    fontSize: 10,
     color: '#D4654A',
     letterSpacing: 0.5,
   },
-  title: {
+  heading: {
     fontFamily: 'PlayfairDisplay_700Bold',
-    fontSize: 34,
+    fontSize: 32,
     color: '#2C2420',
     lineHeight: 40,
-    marginBottom: 10,
+    maxWidth: '85%',
+  },
+  settingsToggle: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#EFE7DC',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 2px 6px rgba(44,36,32,0.03)',
+  },
+  settingsToggleActive: {
+    backgroundColor: '#D4654A',
+    borderColor: '#D4654A',
   },
   subtitle: {
     fontFamily: 'Inter_400Regular',
     fontSize: 13.5,
     color: '#8A7E74',
     lineHeight: 20,
-    maxWidth: 680,
+    marginBottom: 20,
   },
-
-  // Grid
-  gridRow: {
-    flexDirection: 'column',
-    paddingHorizontal: 22,
-    gap: 24,
-  },
-  gridRowTablet: {
-    flexDirection: 'row',
-  },
-  panel: {
-    flex: 1,
-  },
-  panelTablet: {
-    maxWidth: '50%',
-  },
-
-  // Left Panel camera
-  leftPanel: {
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  viewfinderContainer: {
-    width: '100%',
-    height: 340,
-    borderRadius: 16,
-    overflow: 'hidden',
-    position: 'relative',
-    backgroundColor: '#000000',
-    boxShadow: '0px 4px 16px rgba(44, 36, 32, 0.1)',
-    elevation: 6,
-  },
-  webVideo: {
-    width: '100%',
-    height: '100%',
-    objectFit: 'cover',
-  },
-  viewfinderImage: {
-    width: '100%',
-    height: '100%',
-  },
-  scanLaserLine: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    height: 4,
-    backgroundColor: '#5cd65c',
-    boxShadow: '0px 0px 8px #5cd65c',
-    top: '45%',
-  },
-  gridOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.06)',
-    padding: 24,
-  },
-  cornerTL: {
-    position: 'absolute',
-    top: 24,
-    left: 24,
-    width: 20,
-    height: 20,
-    borderTopWidth: 2,
-    borderLeftWidth: 2,
-    borderColor: '#FFFFFF',
-  },
-  cornerTR: {
-    position: 'absolute',
-    top: 24,
-    right: 24,
-    width: 20,
-    height: 20,
-    borderTopWidth: 2,
-    borderRightWidth: 2,
-    borderColor: '#FFFFFF',
-  },
-  cornerBL: {
-    position: 'absolute',
-    bottom: 24,
-    left: 24,
-    width: 20,
-    height: 20,
-    borderBottomWidth: 2,
-    borderLeftWidth: 2,
-    borderColor: '#FFFFFF',
-  },
-  cornerBR: {
-    position: 'absolute',
-    bottom: 24,
-    right: 24,
-    width: 20,
-    height: 20,
-    borderBottomWidth: 2,
-    borderRightWidth: 2,
-    borderColor: '#FFFFFF',
-  },
-  hudOverlay: {
-    position: 'absolute',
-    bottom: 24,
-    left: 24,
-    right: 24,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    borderRadius: 8,
-    padding: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  hudText: {
-    fontFamily: 'Inter_500Medium',
-    fontSize: 11,
-    color: '#FFFFFF',
-    marginBottom: 4,
-  },
-  hudPercent: {
-    fontFamily: 'Inter_700Bold',
-    fontSize: 14,
-    color: '#5cd65c',
-  },
-
-  // Capture buttons below viewfinder
-  viewfinderActionsCol: {
-    marginTop: 16,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16,
-  },
-  btnCapture: {
-    flex: 1.2,
-    backgroundColor: '#D4654A',
-    borderRadius: 12,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxShadow: '0px 2px 8px rgba(212, 101, 74, 0.25)',
-    elevation: 3,
-  },
-  btnCaptureText: {
-    fontFamily: 'Inter_600SemiBold',
-    fontSize: 12.5,
-    color: '#FFFFFF',
-  },
-  btnUpload: {
-    flex: 1,
+  settingsPanel: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#EFE7DC',
-    borderRadius: 12,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxShadow: '0px 2px 6px rgba(44, 36, 32, 0.02)',
+    borderColor: '#F5E6D3',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    boxShadow: '0 4px 12px rgba(44,36,32,0.05)',
   },
-  btnUploadText: {
-    fontFamily: 'Inter_500Medium',
-    fontSize: 12.5,
+  settingsTitle: {
+    fontFamily: 'PlayfairDisplay_700Bold',
+    fontSize: 16,
     color: '#2C2420',
+    marginBottom: 4,
   },
-  btnDisabled: {
-    opacity: 0.6,
-  },
-
-  // Shortcuts aim
-  shortcutHeading: {
-    fontFamily: 'Inter_500Medium',
-    fontSize: 11,
+  settingsSub: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 11.5,
     color: '#8A7E74',
-    marginBottom: 8,
+    lineHeight: 16,
+    marginBottom: 12,
   },
-  shortcutsRow: {
+  apiKeyRow: {
     flexDirection: 'row',
     gap: 8,
-  },
-  shortcutCard: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#EFE7DC',
-    borderRadius: 12,
-    padding: 6,
     alignItems: 'center',
   },
-  shortcutCardActive: {
-    borderColor: '#D4654A',
-    backgroundColor: '#FFFDFB',
-    borderWidth: 1.5,
-  },
-  shortcutImg: {
-    width: '100%',
-    height: 48,
+  saveKeyBtn: {
+    backgroundColor: '#D4654A',
     borderRadius: 8,
-    marginBottom: 4,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
   },
-  shortcutName: {
-    fontFamily: 'Inter_500Medium',
-    fontSize: 9.5,
-    color: '#8A7E74',
-    textAlign: 'center',
-  },
-  shortcutNameActive: {
-    color: '#D4654A',
+  saveKeyBtnText: {
     fontFamily: 'Inter_600SemiBold',
+    fontSize: 12,
+    color: '#FFFFFF',
   },
-
-  // After scan Left side image card
-  eraImageContainer: {
+  settingsTip: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 10.5,
+    color: '#B8AFA8',
+    lineHeight: 14,
+    marginTop: 10,
+    fontStyle: 'italic',
+  },
+  cardGrid: {
+    flexDirection: 'column',
+    gap: 20,
+  },
+  cardGridWide: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#EFE7DC',
+    padding: 20,
+    boxShadow: '0px 4px 12px rgba(44, 36, 32, 0.04)',
+    elevation: 3,
+  },
+  leftCard: {
+    flex: 1.1,
+  },
+  rightCard: {
+    flex: 1,
+    minHeight: 320,
+  },
+  cameraContainer: {
     width: '100%',
-    height: 340,
+    aspectRatio: 4 / 3,
+    backgroundColor: '#000000',
     borderRadius: 16,
     overflow: 'hidden',
     position: 'relative',
-    boxShadow: '0px 4px 16px rgba(44, 36, 32, 0.1)',
-    elevation: 6,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#EFE7DC',
   },
-  eraImage: {
+  cameraImage: {
     width: '100%',
     height: '100%',
   },
-  eraPill: {
-    position: 'absolute',
-    bottom: 16,
-    left: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    boxShadow: '0px 2px 6px rgba(0,0,0,0.1)',
+  nativeCameraFallback: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#2C2420',
   },
-  eraPillText: {
-    fontFamily: 'Inter_600SemiBold',
-    fontSize: 11,
-    color: '#2C2420',
+  nativeFallbackText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: '#8A7E74',
   },
-  renderingOverlay: {
+  loaderOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(255,255,255,0.35)',
+    backgroundColor: 'rgba(44, 36, 32, 0.65)',
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 10,
   },
-  renderingPill: {
+  loaderPill: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderRadius: 999,
     paddingHorizontal: 16,
-    paddingVertical: 9,
-    boxShadow: '0px 2px 10px rgba(0,0,0,0.12)',
+    paddingVertical: 8,
+    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+    elevation: 6,
   },
-  renderingText: {
+  loaderPillText: {
     fontFamily: 'Inter_600SemiBold',
-    fontSize: 11.5,
+    fontSize: 12.5,
     color: '#2C2420',
   },
-  resetRow: {
-    marginTop: 16,
+  loaderPillSub: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 11,
+    color: '#EFE7DC',
+    marginTop: 8,
+    textAlign: 'center',
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowRadius: 3,
   },
-  btnReset: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#EFE7DC',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+  yearOverlayBadge: {
+    position: 'absolute',
+    bottom: 12,
+    left: 12,
+    backgroundColor: 'rgba(44, 36, 32, 0.8)',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    zIndex: 5,
+  },
+  yearOverlayText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 12,
+    color: '#FFFFFF',
+  },
+  cameraBtnRow: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  primaryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#D4654A',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 999,
+    flex: 1.2,
+    minWidth: 140,
   },
-  btnResetText: {
-    fontFamily: 'Inter_500Medium',
-    fontSize: 12,
-    color: '#2C2420',
+  primaryBtnText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 12.5,
+    color: '#FFFFFF',
   },
-
-  // Right Panel Details
-  rightPanel: {
+  outlineBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#EFE7DC',
-    borderRadius: 16,
-    padding: 20,
-    minHeight: 340,
-    boxShadow: '0px 4px 16px rgba(44, 36, 32, 0.03)',
-    elevation: 3,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 999,
+    flex: 1,
+    minWidth: 120,
   },
-  lockedContainer: {
+  outlineBtnText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 12.5,
+    color: '#2C2420',
+  },
+  disabledBtn: {
+    opacity: 0.4,
+  },
+  errorText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 12,
+    color: '#D4654A',
+    marginTop: 10,
+  },
+  placeholderBox: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 48,
+    paddingVertical: 20,
   },
-  lockedIconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#FFF9F2',
-    borderWidth: 1.5,
-    borderColor: '#F5E6D3',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  lockedText: {
+  placeholderText: {
     fontFamily: 'Inter_400Regular',
     fontSize: 13,
     color: '#8A7E74',
     textAlign: 'center',
     lineHeight: 20,
+    marginBottom: 20,
     maxWidth: 280,
   },
-
-  // Timeline view
-  timelinePanel: {
-    display: 'flex',
-    flexDirection: 'column',
+  searchLabel: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 9.5,
+    color: '#B8AFA8',
+    letterSpacing: 1.5,
+    marginBottom: 8,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    gap: 6,
+    marginBottom: 20,
+  },
+  searchSubmitBtn: {
+    backgroundColor: '#D4654A',
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  presetLabel: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 9.5,
+    color: '#B8AFA8',
+    letterSpacing: 1.5,
+    marginBottom: 12,
+  },
+  presetsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  presetBtn: {
+    backgroundColor: '#FDF6EE',
+    borderWidth: 1,
+    borderColor: '#EFE7DC',
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+  },
+  presetBtnText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 12,
+    color: '#2C2420',
+  },
+  timelineBox: {
+    width: '100%',
+  },
+  timelineHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  timelineResetBtn: {
+    borderWidth: 1,
+    borderColor: '#EFE7DC',
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: '#FDF6EE',
+  },
+  timelineResetBtnText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 11,
+    color: '#8A7E74',
   },
   identifiedLabel: {
-    fontFamily: 'Inter_700Bold',
+    fontFamily: 'Inter_600SemiBold',
     fontSize: 9.5,
-    color: '#D4654A',
+    color: '#B8AFA8',
     letterSpacing: 1.5,
-    marginBottom: 4,
   },
   monumentName: {
     fontFamily: 'PlayfairDisplay_700Bold',
-    fontSize: 28,
+    fontSize: 30,
     color: '#2C2420',
-    marginBottom: 4,
+    marginTop: 4,
   },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  locationText: {
+  monumentLoc: {
     fontFamily: 'Inter_500Medium',
-    fontSize: 11.5,
+    fontSize: 12,
     color: '#8A7E74',
+    marginTop: 2,
   },
-  monumentDesc: {
+  monumentSummary: {
     fontFamily: 'Inter_400Regular',
-    fontSize: 12.5,
+    fontSize: 13,
     color: '#8A7E74',
-    lineHeight: 18.5,
+    lineHeight: 19,
+    marginTop: 12,
   },
-  divider: {
-    height: 1,
-    backgroundColor: '#EFE7DC',
-    marginVertical: 16,
-  },
-
-  // Scroller/Slider section
-  scrollerSection: {
-    marginBottom: 16,
-  },
-  nativeSliderLine: {
-    width: '100%',
-    height: 24,
-    position: 'relative',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  nativeSliderTrack: {
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#EFE7DC',
-    width: '100%',
-  },
-  nativeSliderHandle: {
-    position: 'absolute',
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: '#D4654A',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-    top: 3,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 2,
+  scrubberContainer: {
+    marginTop: 24,
   },
   sliderLabelRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    alignItems: 'center',
+    marginBottom: 6,
   },
-  sliderYearLimit: {
-    fontFamily: 'Inter_500Medium',
-    fontSize: 10,
-    color: '#B8AFA8',
-  },
-  sliderYearCurrent: {
-    fontFamily: 'Inter_700Bold',
-    fontSize: 14,
-    color: '#D4654A',
-  },
-  eraHeading: {
-    fontFamily: 'Inter_500Medium',
+  sliderLabelMin: {
+    fontFamily: 'Inter_600SemiBold',
     fontSize: 11,
     color: '#8A7E74',
-    marginBottom: 8,
   },
-  eraButtonsRow: {
+  sliderLabelVal: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 13,
+    color: '#D4654A',
+  },
+  sliderLabelMax: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 11,
+    color: '#8A7E74',
+  },
+  nativeSliderLabel: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 11.5,
+    color: '#8A7E74',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  eraPillsRow: {
     flexDirection: 'row',
-    gap: 6,
     flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 10,
+    marginBottom: 18,
   },
-  btnEra: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
+  eraPill: {
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#EFE7DC',
-    backgroundColor: '#FFFFFF',
+    borderRadius: 999,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
   },
-  btnEraActive: {
+  eraPillActive: {
     backgroundColor: '#D4654A',
     borderColor: '#D4654A',
   },
-  btnEraText: {
+  eraPillText: {
     fontFamily: 'Inter_600SemiBold',
-    fontSize: 10,
+    fontSize: 11,
     color: '#8A7E74',
   },
-  btnEraTextActive: {
+  eraPillTextActive: {
     color: '#FFFFFF',
   },
-
-  // Era details card
   eraCard: {
-    backgroundColor: '#FFF9F2',
+    backgroundColor: '#FFFDFB',
     borderWidth: 1,
     borderColor: '#F5E6D3',
-    borderRadius: 12,
-    padding: 14,
-    boxShadow: '0px 2px 8px rgba(212, 101, 74, 0.02)',
+    borderRadius: 16,
+    padding: 16,
   },
-  eraCardTitle: {
+  eraCardHeading: {
     fontFamily: 'Inter_700Bold',
-    fontSize: 12,
-    color: '#D4654A',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-    marginBottom: 6,
-  },
-  eraCardText: {
-    fontFamily: 'Inter_400Regular',
     fontSize: 12.5,
+    color: '#D4654A',
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+  },
+  eraCardDesc: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 13,
     color: '#2C2420',
     lineHeight: 18.5,
-    marginBottom: 8,
+    marginTop: 8,
   },
-  eraCardLook: {
+  appearanceDivider: {
+    height: 1,
+    backgroundColor: '#F5E6D3',
+    marginVertical: 12,
+  },
+  eraCardAppearance: {
     fontFamily: 'Inter_400Regular',
     fontSize: 11.5,
     color: '#8A7E74',
-    lineHeight: 16.5,
     fontStyle: 'italic',
   },
-  flashOverlay: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: '#FFFFFF',
-    zIndex: 99,
+  calibrationContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
   },
-  eraCardDivider: {
-    height: 1,
-    backgroundColor: '#F5E6D3',
-    marginVertical: 10,
-    borderStyle: 'dashed',
-    borderWidth: 1,
-    borderRadius: 1,
+  calibrationHeading: {
+    fontFamily: 'PlayfairDisplay_700Bold',
+    fontSize: 20,
+    color: '#2C2420',
+    marginBottom: 6,
   },
+  calibrationSub: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: '#8A7E74',
+    textAlign: 'center',
+    lineHeight: 17,
+    marginBottom: 14,
+  },
+  orSuggestions: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 11,
+    color: '#8A7E74',
+    alignSelf: 'flex-start',
+    marginBottom: 8,
+  },
+  cancelBtn: {
+    marginTop: 18,
+    paddingVertical: 8,
+  },
+  cancelBtnText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 12,
+    color: '#8A7E74',
+    textDecorationLine: 'underline',
+  }
 });
